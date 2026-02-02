@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div style="padding:15px; display:flex; justify-content:space-between; align-items:center; background:#111;">
+        <h2 style="margin:0; color:#d4af37;">LUMIÈRE</h2>
+        <span id="status" style="font-size:10px; color:gray;">Connecting...</span>
+    </div>
+    
+    <div id="table-grid" class="grid"></div>
+
+    <div id="drawer">
+        <h2 id="drawer-title" style="color:#d4af37; margin-top:0;"></h2>
+        <div id="menu-items" class="menu-grid"></div>
+        <button class="close-btn" onclick="window.toggleDrawer(null)">CLOSE</button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+    <script>
+        window.activeId = null;
+        window.toggleDrawer = function(id) {
+            window.activeId = id;
+            const d = document.getElementById('drawer');
+            if(id) {
+                d.classList.add('active');
+                document.getElementById('drawer-title').innerText = "Table " + id;
+                window.renderMenu();
+            } else { d.classList.remove('active'); }
+        };
+
+        window.renderTables = function() {
+            const db = window.getDB();
+            document.getElementById('status').innerText = "LIVE SYNC ON";
+            document.getElementById('status').style.color = "#00c851";
+            document.getElementById('table-grid').innerHTML = db.map(t => `
+                <div class="table ${t.status}" onclick="window.toggleDrawer(${t.id})">
+                    <strong>${t.id}</strong>
+                    <small style="font-size:9px; opacity:0.5;">${t.orders ? t.orders.length : 0} items</small>
+                </div>`).join('');
+        };
+
+        window.renderMenu = function() {
+            document.getElementById('menu-items').innerHTML = window.MENU.map(m => `
+                <button class="menu-btn" onclick="window.addItem(${m.id})">
+                    ${m.name}<br><small>$${m.price}</small>
+                </button>
+            `).join('');
+        };
+    </script>
+</body>
+</html>

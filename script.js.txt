@@ -1,0 +1,54 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBFYubxSUHpP6g5Vvwt65gsWXDr5Ux535o",
+    authDomain: "lumiere-erp.firebaseapp.com",
+    projectId: "lumiere-erp",
+    storageBucket: "lumiere-erp.firebasestorage.app",
+    messagingSenderId: "78622005633",
+    appId: "1:78622005633:web:c231e3862e13787686b080",
+    measurementId: "G-DQHWX53TQD",
+    databaseURL: "https://lumiere-erp-default-rtdb.firebaseio.com" 
+};
+
+const app = initializeApp(firebaseConfig);
+const db_fb = getDatabase(app);
+
+window.MENU = [
+    { id: 1, name: "Momo", price: 15 },
+    { id: 2, name: "Spring Roll", price: 10 },
+    { id: 3, name: "Pasta", price: 45 },
+    { id: 4, name: "Steak", price: 120 },
+    { id: 5, name: "Red Wine", price: 300 }
+];
+
+let tablesData = [];
+
+onValue(ref(db_fb, 'tables'), (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+        tablesData = data;
+    } else {
+        const init = Array.from({ length: 20 }, (_, i) => ({
+            id: i + 1, status: 'available', orders: []
+        }));
+        set(ref(db_fb, 'tables'), init);
+        tablesData = init;
+    }
+    if (typeof window.renderTables === "function") window.renderTables();
+});
+
+window.getDB = () => tablesData;
+window.saveDB = (data) => set(ref(db_fb, 'tables'), data);
+
+window.addItem = (menuId) => {
+    const item = window.MENU.find(m => m.id === menuId);
+    const db = window.getDB();
+    const table = db[window.activeId - 1];
+    if(!table.orders) table.orders = [];
+    table.orders.push({ ...item, ts: Date.now() });
+    table.status = 'occupied';
+    window.saveDB(db);
+    alert(item.name + " added!");
+};
