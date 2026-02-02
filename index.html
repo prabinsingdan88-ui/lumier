@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .remove-btn { background:#ff4444; color:white; border:none; border-radius:4px; width:25px; height:25px; font-weight:bold; cursor:pointer; }
+        .fired-check { color: var(--green); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-top">
+            <div class="logo">LUMIÈRE ERP</div>
+            <div style="display:flex; gap:10px;">
+                <a href="kitchen.html" class="nav-btn">👨‍🍳 KDS</a>
+                <button onclick="if(prompt('PIN')==='0000')window.location.href='admin.html'" class="nav-btn">💰 ADM</button>
+            </div>
+        </div>
+        <input type="text" class="search-bar" id="menuSearch" placeholder="Search Menu..." oninput="window.renderMenu()">
+    </nav>
+
+    <div id="table-grid" class="grid"></div>
+
+    <div id="drawer">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 id="drawer-title" style="margin:0; color:var(--gold);"></h2>
+            <button onclick="window.toggleVIP(window.activeId)" style="background:var(--purple); border:none; color:white; padding:5px 10px; border-radius:5px;">VIP Toggle</button>
+        </div>
+        <div class="cat-scroll" id="cat-bar"></div>
+        <div class="menu-grid" id="menu-items"></div>
+        <div id="cart-list" style="margin-top:20px; border-top:1px solid #333;"></div>
+        <div id="total" style="text-align:right; color:var(--gold); font-weight:bold; font-size:1.5rem; padding:15px 0;"></div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="fire-btn" onclick="window.fireOrder()">SEND ORDER</button>
+            <button class="fire-btn" style="background:var(--red);" onclick="const m=window.MENU.find(m=>m.name.includes('Momo')); if(m) window.addItem(m.id, true)">RUSH MOMO</button>
+        </div>
+        <button onclick="window.toggleDrawer(null)" style="width:100%; background:none; border:none; color:#555; padding:20px;">Dismiss</button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+    <script>
+        window.activeId = null;
+        window.currentCat = "All";
+
+        window.toggleDrawer = function(id) {
+            window.activeId = id; 
+            const d = document.getElementById('drawer');
+            if(id) { 
+                d.classList.add('active'); 
+                document.getElementById('drawer-title').innerText = "Table "+id; 
+                window.renderMenu(); window.renderCart(); 
+            } else { d.classList.remove('active'); window.renderTables(); }
+        };
+
+        window.renderTables = function() {
+            const db = window.getDB ? window.getDB() : [];
+            if(db.length === 0) return;
+            document.getElementById('table-grid').innerHTML = db.map(t => `
+                <div class="table ${t.status} ${t.isVIP?'vip':''}" onclick="window.toggleDrawer(${t.id})">
+                    ${t.isVIP?'<span class="vip-badge">★ VIP</span>':''}
+                    <strong>${t.id}</strong>
+                    <small style="font-size:0.5rem; opacity:0.6;">${t.orders.length} ITEMS</small>
+                </div>`).join('');
+        };
+
+        window.renderMenu = function() {
+            const query = document.getElementById('menuSearch').value.toLowerCase();
+            const cats = ["All", ...new Set(window.MENU.map(m => m.cat))];
+            document.getElementById('cat-bar').innerHTML = cats.map(c => `
+                <button class="cat-btn ${window.currentCat===c?'active':''}" onclick="window.currentCat='${c}';window.renderMenu()">${c}</button>
+            `).join('');
+            const filtered = window.MENU.filter(m => (window.currentCat==="All" || m.cat===window.currentCat) && m.name.toLowerCase().includes(query));
+            document.getElementById('menu-items').innerHTML = filtered.map(m => `
+                <button class="menu-item-btn ${!m.stock?'out-stock':''}" onclick="window.addItem(${m.id})">
+                    <span style="font-weight:bold;">${m.name}</span>
+                    <span style="color:var(--gold); font-size:0.8rem;">$${m.price}</span>
+                </button>`).join('');
+        };
+
+        window.renderCart = function() {
+            const db = window.getDB();
+            if(!window.activeId) return;
+            const t = db[window.activeId-1]; 
+            let tot = 0;
+            document.getElementById('cart-list').innerHTML = t.orders.map(o => {
+                tot += (o.price * o.qty);
+                return `<div class="cart-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #222;">
+                    <div><b>${o.qty}x ${o.name}</b></div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span>$${o.price * o.qty}</span>
+                        ${!o.fired ? `<button class="remove-btn" onclick="window.removeItem(${o.ts})">−</button>` : '<span class="fired-check">✓</span>'}
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('total').innerText = "Total: $"+tot;
+        };
+
+        window.toggleVIP = function(id) {
+            const db = window.getDB();
+            db[id-1].isVIP = !db[id-1].isVIP;
+            window.saveDB(db);
+        };
+    </script>
+</body>
+</html>

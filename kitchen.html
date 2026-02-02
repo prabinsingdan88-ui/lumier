@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .kds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding: 15px; }
+        .kds-card { background: #111; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
+        .kds-header { background: var(--gold); color: black; padding: 10px; display: flex; justify-content: space-between; font-weight: bold; }
+        .kds-item { padding: 12px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .rush-order { border: 2px solid var(--red); animation: blink 1s infinite; }
+        @keyframes blink { 50% { border-color: transparent; } }
+        .serve-btn { background: var(--green); border: none; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .served-item { opacity: 0.3; text-decoration: line-through; }
+    </small></style>
+</head>
+<body style="background: #000; color: white;">
+
+    <nav style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111;">
+        <div style="font-weight: bold; color: var(--gold);">KITCHEN DISPLAY (KDS)</div>
+        <a href="index.html" style="color: white; text-decoration: none; font-size: 0.8rem; border: 1px solid #444; padding: 5px 10px; border-radius: 4px;">EXIT</a>
+    </nav>
+
+    <div id="kds-list" class="kds-grid"></div>
+
+    <script type="module">
+        import { MENU } from './script.js';
+
+        // Listen for data changes from Firebase (Logic is in script.js)
+        // We use a small interval to check the global getDB() from script.js
+        function renderKDS() {
+            const db = window.getDB ? window.getDB() : [];
+            // Filter only tables that have "Cooking" status or active orders
+            const activeOrders = db.filter(t => t.orders.some(o => o.fired && !o.isServed));
+
+            if (activeOrders.length === 0) {
+                document.getElementById('kds-list').innerHTML = `<div style="padding:40px; text-align:center; color:#444; width:100%;">No pending orders.</div>`;
+                return;
+            }
+
+            document.getElementById('kds-list').innerHTML = activeOrders.map(t => {
+                const pendingItems = t.orders.filter(o => o.fired);
+                const isRush = pendingItems.some(o => o.isRush);
+
+                return `
+                <div class="kds-card ${isRush ? 'rush-order' : ''}">
+                    <div class="kds-header" style="${isRush ? 'background:var(--red); color:white;' : ''}">
+                        <span>TABLE ${t.id}</span>
+                        <span>${pendingItems[0].time}</span>
+                    </div>
+                    <div class="kds-body">
+                        ${pendingItems.map((o, idx) => `
+                            <div class="kds-item ${o.isServed ? 'served-item' : ''}">
+                                <div>
+                                    <span style="font-size:1.2rem; font-weight:bold; color:var(--gold);">${o.qty}x</span> 
+                                    <span style="font-size:1.1rem;">${o.name}</span>
+                                    ${o.note ? `<br><small style="color:#aaa; font-style:italic;">"${o.note}"</small>` : ''}
+                                </div>
+                                ${!o.isServed ? `
+                                    <button class="serve-btn" onclick="markServed(${t.id}, ${o.ts})">DONE</button>
+                                ` : '✅'}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="finishTable(${t.id})" style="width:100%; padding:10px; background:#222; border:none; color:#888; font-size:0.7rem; cursor:pointer;">Clear All Done Items</button>
+                </div>`;
+            }).join('');
+        }
+
+        // Action when chef finishes an item
+        window.markServed = (tableId, orderTs) => {
+            const db = window.getDB();
+            const table = db[tableId - 1];
+            const item = table.orders.find(o => o.ts === orderTs);
+            if (item) {
+                item.isServed = true;
+                window.saveDB(db); // Updates Firebase instantly
+            }
+        };
+
+        // Clear only served items from the KDS view
+        window.finishTable = (tableId) => {
+            const db = window.getDB();
+            const table = db[tableId - 1];
+            // If all items are served, we can change status to 'served'
+            if (table.orders.every(o => o.isServed)) {
+                table.status = 'occupied'; // Change from 'cooking' to 'occupied'
+            }
+            window.saveDB(db);
+        };
+
+        // Refresh the UI every 2 seconds to check for new data from Firebase
+        setInterval(renderKDS, 2000);
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>

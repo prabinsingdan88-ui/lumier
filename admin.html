@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav style="display:flex; padding:0; background:#111;">
+        <button class="nav-btn" onclick="window.switchTab('billing')">Billing</button>
+        <button class="nav-btn" onclick="window.switchTab('reports')">Reports</button>
+        <a href="index.html" class="nav-btn">EXIT</a>
+    </nav>
+
+    <div id="billing-sec" class="tab-content" style="padding:20px;">
+        <div id="adm-list"></div>
+    </div>
+
+    <div id="reports-sec" class="tab-content" style="padding:20px; display:none;">
+        <div id="daily-report"></div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+    <script>
+        window.switchTab = (tab) => {
+            document.getElementById('billing-sec').style.display = tab === 'billing' ? 'block' : 'none';
+            document.getElementById('reports-sec').style.display = tab === 'reports' ? 'block' : 'none';
+            if(tab === 'billing') window.renderAdmin();
+            if(tab === 'reports') window.renderReports();
+        };
+
+        window.renderAdmin = () => {
+            const db = window.getDB ? window.getDB() : [];
+            const activeTables = db.filter(t => t.orders.length > 0);
+            document.getElementById('adm-list').innerHTML = activeTables.map(t => {
+                const total = t.orders.reduce((a, b) => a + (b.price * b.qty), 0);
+                return `<div class="admin-card" style="background:#111; padding:15px; margin-bottom:15px; border-radius:10px; border:1px solid #333;">
+                    <strong>TABLE ${t.id} - Total: $${total}</strong>
+                    <button onclick="window.processSettle(${t.id}, ${total})" style="width:100%; margin-top:10px; padding:10px; background:var(--green); border:none; color:white; border-radius:5px;">SETTLE BILL</button>
+                </div>`;
+            }).join('');
+        };
+
+        window.processSettle = (id, total) => {
+            const db = window.getDB();
+            const table = db[id-1];
+            window.saveDetailedSale({ tableId: id, total, cash: total }, table.orders);
+            db[id-1] = { id, status: 'available', orders: [], isVIP: false };
+            window.saveDB(db);
+        };
+
+        window.renderReports = () => {
+            const sales = window.getSales();
+            const total = sales.reduce((a, b) => a + b.total, 0);
+            document.getElementById('daily-report').innerHTML = `<h3>Today's Total: $${total}</h3>`;
+        };
+    </script>
+</body>
+</html>
